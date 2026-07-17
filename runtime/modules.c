@@ -78,6 +78,7 @@ static struct cnfparamblk pblk = {CNFPARAMBLK_VERSION, sizeof(actpdescr) / sizeo
 
 typedef rsRetVal (*pModInit_t)(int, int *, rsRetVal (**)(), rsRetVal (*)(), modInfo_t *);
 
+static const char cfgModRefSrc[] = "cfgmodules";
 static rsRetVal Use(const char *srcFile, modInfo_t *pThis);
 
 /* we provide a set of dummy functions for modules that do not support the
@@ -408,7 +409,7 @@ rsRetVal ATTR_NONNULL(1) addModToCnfList(cfgmodules_etry_t **const pNew, cfgmodu
      * points during rsconf teardown, so hold an explicit module reference for
      * the lifetime of the cfgmodules entry.
      */
-    CHKiRet(Use(__FILE__, (*pNew)->pMod));
+    CHKiRet(Use(cfgModRefSrc, (*pNew)->pMod));
 
     if (pLast == NULL) {
         loadConf->modules.root = *pNew;

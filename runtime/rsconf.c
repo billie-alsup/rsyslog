@@ -87,6 +87,7 @@ DEFobjCurrIf(ruleset) DEFobjCurrIf(module) DEFobjCurrIf(conf) DEFobjCurrIf(glbl)
     /* exported static data */
     rsconf_t *runConf = NULL; /* the currently running config */
 rsconf_t *loadConf = NULL; /* the config currently being loaded (no concurrent config load supported!) */
+static const char cfgModRefSrc[] = "cfgmodules";
 
 #ifdef HAVE_LIBSYSTEMD
 /* module readiness barrier: modules that need startup time call rsconfRegisterReadiness(),
@@ -462,7 +463,7 @@ static void releaseCnfModRefs(rsconf_t *pThis) {
     while (etry != NULL) {
         del = etry;
         etry = etry->next;
-        module.Release(__FILE__, &del->pMod);
+        module.Release(cfgModRefSrc, &del->pMod);
         free(del);
     }
     pThis->modules.root = NULL;
