@@ -49,27 +49,29 @@ keyUsage = critical,keyCertSign,cRLSign
 subjectKeyIdentifier = hash
 EOF
 
-openssl genrsa -out "$workdir/ca.key" 2048 >/dev/null 2>&1 || error_exit 1
-openssl req -x509 -new -key "$workdir/ca.key" -sha256 -days 365 \
+openssl genrsa -out "$workdir/ca.key" 2048 || error_exit 1
+openssl req -new -key "$workdir/ca.key" \
 	-subj "/C=US/ST=CA/L=Test/O=rsyslog/OU=test/CN=Test-CA" \
-	-config "$workdir/ca.cnf" -extensions v3_ca \
-	-out "$workdir/ca.pem" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/ca.csr" || error_exit 1
+openssl x509 -req -in "$workdir/ca.csr" -signkey "$workdir/ca.key" -sha256 -days 365 \
+	-extfile "$workdir/ca.cnf" -extensions v3_ca \
+	-out "$workdir/ca.pem" || error_exit 1
 
-openssl genrsa -out "$workdir/server.key" 2048 >/dev/null 2>&1 || error_exit 1
+openssl genrsa -out "$workdir/server.key" 2048 || error_exit 1
 openssl req -new -key "$workdir/server.key" \
 	-subj "/C=US/ST=CA/L=Test/O=rsyslog/OU=test/CN=localhost" \
-	-out "$workdir/server.csr" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/server.csr" || error_exit 1
 openssl x509 -req -in "$workdir/server.csr" -CA "$workdir/ca.pem" -CAkey "$workdir/ca.key" \
 	-CAcreateserial -sha256 -days 365 -extfile "$workdir/server.ext" \
-	-out "$workdir/server.pem" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/server.pem" || error_exit 1
 
-openssl genrsa -out "$workdir/client.key" 2048 >/dev/null 2>&1 || error_exit 1
+openssl genrsa -out "$workdir/client.key" 2048 || error_exit 1
 openssl req -new -key "$workdir/client.key" \
 	-subj "/C=US/ST=CA/L=Test/O=rsyslog/OU=test/CN=rsyslog-client" \
-	-out "$workdir/client.csr" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/client.csr" || error_exit 1
 openssl x509 -req -in "$workdir/client.csr" -CA "$workdir/ca.pem" -CAkey "$workdir/ca.key" \
 	-CAcreateserial -sha256 -days 365 -extfile "$workdir/client.ext" \
-	-out "$workdir/client.pem" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/client.pem" || error_exit 1
 
 ./openssl_mtls_server 0 "$workdir/server.pem" "$workdir/server.key" "$workdir/ca.pem" \
 	"$port_file" "$server_capture" 2>"$server_stderr" &

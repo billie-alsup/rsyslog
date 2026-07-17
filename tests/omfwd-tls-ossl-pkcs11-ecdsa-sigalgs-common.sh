@@ -142,9 +142,11 @@ subjectKeyIdentifier = hash
 EOF
 
 run_setup_cmd openssl genrsa -out "$workdir/ca.key" 3072
-run_setup_cmd openssl req -x509 -new -key "$workdir/ca.key" -sha256 -days 365 \
+run_setup_cmd openssl req -new -key "$workdir/ca.key" \
 	-subj "/C=US/ST=CA/L=Test/O=rsyslog/OU=test/CN=Test-CA" \
-	-config "$workdir/ca.cnf" -extensions v3_ca \
+	-out "$workdir/ca.csr"
+run_setup_cmd openssl x509 -req -in "$workdir/ca.csr" -signkey "$workdir/ca.key" -sha256 -days 365 \
+	-extfile "$workdir/ca.cnf" -extensions v3_ca \
 	-out "$workdir/ca.pem"
 
 run_setup_cmd openssl genrsa -out "$workdir/server.key" 3072

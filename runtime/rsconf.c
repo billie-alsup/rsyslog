@@ -440,20 +440,32 @@ static rsRetVal rsconfConstructFinalize(rsconf_t __attribute__((unused)) * pThis
 }
 
 
-/* call freeCnf() module entry points AND free the module entries themselfes.
+/* call freeCnf() module entry points.
+ * Module references are released later, after all other config-owned objects
+ * that may still call back into those modules have been destroyed.
  */
 static void freeCnf(rsconf_t *pThis) {
-    cfgmodules_etry_t *etry, *del;
+    cfgmodules_etry_t *etry;
     etry = pThis->modules.root;
     while (etry != NULL) {
         if (etry->pMod->beginCnfLoad != NULL) {
             dbgprintf("calling freeCnf(%p) for module '%s'\n", etry->modCnf, (char *)module.GetName(etry->pMod));
             etry->pMod->freeCnf(etry->modCnf);
         }
+        etry = etry->next;
+    }
+}
+
+static void releaseCnfModRefs(rsconf_t *pThis) {
+    cfgmodules_etry_t *etry, *del;
+    etry = pThis->modules.root;
+    while (etry != NULL) {
         del = etry;
         etry = etry->next;
+        module.Release(__FILE__, &del->pMod);
         free(del);
     }
+    pThis->modules.root = NULL;
 }
 
 
@@ -498,6 +510,7 @@ BEGINobjDestruct(rsconf) /* be sure to specify the object type also in END and C
     freeActionNames(pThis);
     llDestroy(&(pThis->rulesets.llRulesets));
     ratelimit_cfgsDestruct(&pThis->ratelimit_cfgs);
+    releaseCnfModRefs(pThis);
 ENDobjDestruct(rsconf)
 
 

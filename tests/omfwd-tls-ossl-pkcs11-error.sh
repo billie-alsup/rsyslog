@@ -97,23 +97,25 @@ keyUsage = critical,keyCertSign,cRLSign
 subjectKeyIdentifier = hash
 EOF
 
-openssl genrsa -out "$workdir/ca.key" 2048 >/dev/null 2>&1 || error_exit 1
-openssl req -x509 -new -key "$workdir/ca.key" -sha256 -days 365 \
+openssl genrsa -out "$workdir/ca.key" 2048 || error_exit 1
+openssl req -new -key "$workdir/ca.key" \
 	-subj "/C=US/ST=CA/L=Test/O=rsyslog/OU=test/CN=Test-CA" \
-	-config "$workdir/ca.cnf" -extensions v3_ca \
-	-out "$workdir/ca.pem" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/ca.csr" || error_exit 1
+openssl x509 -req -in "$workdir/ca.csr" -signkey "$workdir/ca.key" -sha256 -days 365 \
+	-extfile "$workdir/ca.cnf" -extensions v3_ca \
+	-out "$workdir/ca.pem" || error_exit 1
 
-openssl genrsa -out "$workdir/client.key" 2048 >/dev/null 2>&1 || error_exit 1
+openssl genrsa -out "$workdir/client.key" 2048 || error_exit 1
 openssl req -new -key "$workdir/client.key" \
 	-subj "/C=US/ST=CA/L=Test/O=rsyslog/OU=test/CN=rsyslog-client" \
-	-out "$workdir/client.csr" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/client.csr" || error_exit 1
 openssl x509 -req -in "$workdir/client.csr" -CA "$workdir/ca.pem" -CAkey "$workdir/ca.key" \
 	-CAcreateserial -sha256 -days 365 -extfile "$workdir/client.ext" \
-	-out "$workdir/client.pem" >/dev/null 2>&1 || error_exit 1
+	-out "$workdir/client.pem" || error_exit 1
 
-openssl x509 -in "$workdir/ca.pem" -outform DER -out "$workdir/ca.der" >/dev/null 2>&1 || error_exit 1
-openssl x509 -in "$workdir/client.pem" -outform DER -out "$workdir/client.der" >/dev/null 2>&1 || error_exit 1
-openssl pkey -in "$workdir/client.key" -pubout -outform DER -out "$workdir/client.pub.der" >/dev/null 2>&1 || \
+openssl x509 -in "$workdir/ca.pem" -outform DER -out "$workdir/ca.der" || error_exit 1
+openssl x509 -in "$workdir/client.pem" -outform DER -out "$workdir/client.der" || error_exit 1
+openssl pkey -in "$workdir/client.key" -pubout -outform DER -out "$workdir/client.pub.der" || \
 	error_exit 1
 
 cat >"$softhsm_conf" <<EOF
@@ -123,17 +125,15 @@ slots.removable = false
 EOF
 export SOFTHSM2_CONF="$softhsm_conf"
 
-softhsm2-util --init-token --free --label "$token_label" --so-pin "$token_so_pin" --pin "$token_pin" \
-	>/dev/null 2>&1 || error_exit 1
-softhsm2-util --import "$workdir/client.key" --token "$token_label" --label client-key --id 01 --pin "$token_pin" \
-	>/dev/null 2>&1 || error_exit 1
+softhsm2-util --init-token --free --label "$token_label" --so-pin "$token_so_pin" --pin "$token_pin" || error_exit 1
+softhsm2-util --import "$workdir/client.key" --token "$token_label" --label client-key --id 01 --pin "$token_pin" || error_exit 1
 
 pkcs11-tool --module "$softhsm_module" --login --pin "$token_pin" --token-label "$token_label" \
-	--write-object "$workdir/client.pub.der" --type pubkey --id 01 --label client-pub >/dev/null 2>&1 || error_exit 1
+	--write-object "$workdir/client.pub.der" --type pubkey --id 01 --label client-pub || error_exit 1
 pkcs11-tool --module "$softhsm_module" --login --pin "$token_pin" --token-label "$token_label" \
-	--write-object "$workdir/client.der" --type cert --id 01 --label client-cert >/dev/null 2>&1 || error_exit 1
+	--write-object "$workdir/client.der" --type cert --id 01 --label client-cert || error_exit 1
 pkcs11-tool --module "$softhsm_module" --login --pin "$token_pin" --token-label "$token_label" \
-	--write-object "$workdir/ca.der" --type cert --id 02 --label ca-cert >/dev/null 2>&1 || error_exit 1
+	--write-object "$workdir/ca.der" --type cert --id 02 --label ca-cert || error_exit 1
 
 cat >"$openssl_conf" <<EOF
 openssl_conf = openssl_init
